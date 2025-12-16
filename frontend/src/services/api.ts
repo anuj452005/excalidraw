@@ -60,4 +60,14 @@ export const blocksApi = {
         api.put(`/blocks/reorder/${pageId}`, { blockOrders }),
 };
 
+// Folders API
+export const foldersApi = {
+    getAll: () => api.get('/folders'),
+    create: (data: { name: string; parentId?: string }) => api.post('/folders', data),
+    update: (id: string, data: { name?: string; parentId?: string }) => api.put(`/folders/${id}`, data),
+    delete: (id: string) => api.delete(`/folders/${id}`),
+    movePage: (pageId: string, folderId: string | null) =>
+        api.put(`/folders/move-page/${pageId}`, { folderId }),
+};
+
 export default api;

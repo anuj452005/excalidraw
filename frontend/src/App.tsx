@@ -3,8 +3,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/ProtectedRoute';
 import Login from './pages/Login';
 import Signup from './pages/Signup';
-import Home from './pages/Home';
-import PageEditor from './pages/PageEditor';
+import Dashboard from './pages/Dashboard';
 import './App.css';
 
 function App() {
@@ -18,15 +17,7 @@ function App() {
             path="/"
             element={
               <ProtectedRoute>
-                <Home />
-              </ProtectedRoute>
-            }
-          />
-          <Route
-            path="/page/:id"
-            element={
-              <ProtectedRoute>
-                <PageEditor />
+                <Dashboard />
               </ProtectedRoute>
             }
           />
