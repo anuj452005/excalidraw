@@ -1,0 +1,36 @@
+.text-block-container {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.text-block-input {
+    width: 100%;
+    background: transparent;
+    border: none;
+    color: #fff;
+    font-size: 16px;
+    line-height: 1.7;
+    resize: none;
+    min-height: 60px;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+.text-block-input:focus {
+    outline: none;
+}
+
+.text-block-input::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+}
+
+.text-block-hint {
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.3);
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.text-block-container:focus-within .text-block-hint {
+    opacity: 1;
+}
