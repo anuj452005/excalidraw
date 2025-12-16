@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { pagesApi, blocksApi } from '../services/api';
 import TextBlock from './blocks/TextBlock';
 import CodeBlock from './blocks/CodeBlock';
@@ -32,7 +32,13 @@ interface InfiniteCanvasProps {
     pageId: string | null;
 }
 
-const DEFAULT_BLOCK_SIZE = { width: 400, height: 200 };
+const DEFAULT_SIZES: Record<string, { width: number; height: number }> = {
+    text: { width: 400, height: 150 },
+    code: { width: 500, height: 350 },
+    drawing: { width: 600, height: 400 },
+    image: { width: 400, height: 300 }
+};
+
 const GRID_SIZE = 20;
 
 export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
@@ -47,9 +53,13 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
     const [isPanning, setIsPanning] = useState(false);
     const [panStart, setPanStart] = useState({ x: 0, y: 0 });
     const [selectedBlock, setSelectedBlock] = useState<string | null>(null);
-    const [draggingBlock, setDraggingBlock] = useState<string | null>(null);
-    const [resizingBlock, setResizingBlock] = useState<string | null>(null);
-    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [dragState, setDragState] = useState<{
+        blockId: string;
+        startX: number;
+        startY: number;
+        startPos: BlockPosition;
+        mode: 'drag' | 'resize';
+    } | null>(null);
 
     const canvasRef = useRef<HTMLDivElement>(null);
     const contentRef = useRef<HTMLDivElement>(null);
@@ -90,56 +100,47 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
         }
     };
 
-    const getBlockPosition = (block: Block): BlockPosition => {
+    const getBlockPosition = useCallback((block: Block): BlockPosition => {
+        const defaultSize = DEFAULT_SIZES[block.type] || DEFAULT_SIZES.text;
         return block.content?.position || {
             x: 100 + (block.orderIndex % 3) * 450,
-            y: 100 + Math.floor(block.orderIndex / 3) * 250,
-            width: DEFAULT_BLOCK_SIZE.width,
-            height: DEFAULT_BLOCK_SIZE.height
+            y: 100 + Math.floor(block.orderIndex / 3) * 280,
+            width: defaultSize.width,
+            height: defaultSize.height
         };
-    };
+    }, []);
 
-    const updateBlockPosition = async (blockId: string, position: Partial<BlockPosition>) => {
+    const saveBlockPosition = async (blockId: string, position: BlockPosition) => {
         if (!page) return;
 
         const block = page.blocks.find(b => b.id === blockId);
         if (!block) return;
 
-        const currentPos = getBlockPosition(block);
-        const newPosition = { ...currentPos, ...position };
-
-        const newContent = { ...block.content, position: newPosition };
-
-        setPage({
-            ...page,
-            blocks: page.blocks.map(b =>
-                b.id === blockId ? { ...b, content: newContent } : b
-            )
-        });
+        const newContent = { ...block.content, position };
 
         try {
             await blocksApi.update(blockId, { content: newContent });
         } catch (error) {
-            console.error('Failed to update block position:', error);
+            console.error('Failed to save block position:', error);
         }
     };
 
     const addBlock = async (type: Block['type']) => {
         if (!page) return;
 
-        // Calculate center position
-        const centerX = (-offset.x + (canvasRef.current?.clientWidth || 800) / 2) / scale - DEFAULT_BLOCK_SIZE.width / 2;
-        const centerY = (-offset.y + (canvasRef.current?.clientHeight || 600) / 2) / scale - DEFAULT_BLOCK_SIZE.height / 2;
+        const size = DEFAULT_SIZES[type];
+        const centerX = (-offset.x + (canvasRef.current?.clientWidth || 800) / 2) / scale - size.width / 2;
+        const centerY = (-offset.y + (canvasRef.current?.clientHeight || 600) / 2) / scale - size.height / 2;
 
         const position: BlockPosition = {
             x: Math.round(centerX / GRID_SIZE) * GRID_SIZE,
             y: Math.round(centerY / GRID_SIZE) * GRID_SIZE,
-            width: DEFAULT_BLOCK_SIZE.width,
-            height: type === 'drawing' ? 350 : DEFAULT_BLOCK_SIZE.height
+            width: size.width,
+            height: size.height
         };
 
         const baseContent = type === 'text' ? { text: '' } :
-            type === 'code' ? { code: '', language: 'javascript', output: '' } :
+            type === 'code' ? { code: '// Write your code here\nconsole.log("Hello World!");', language: 'javascript', output: '' } :
                 type === 'drawing' ? { data: null } :
                     { url: '', localData: undefined };
 
@@ -151,52 +152,68 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
                 orderIndex: page.blocks.length
             });
 
-            setPage({
-                ...page,
-                blocks: [...page.blocks, response.data.block]
-            });
-            setSelectedBlock(response.data.block.id);
+            const newBlock = response.data.block;
+            setPage(prev => prev ? {
+                ...prev,
+                blocks: [...prev.blocks, newBlock]
+            } : null);
+            setSelectedBlock(newBlock.id);
         } catch (error) {
             console.error('Failed to add block:', error);
         }
     };
 
-    const updateBlockContent = async (blockId: string, newContent: any) => {
+    const updateBlockContent = useCallback(async (blockId: string, newContent: any) => {
         if (!page) return;
 
         const block = page.blocks.find(b => b.id === blockId);
         if (!block) return;
 
-        const mergedContent = { ...block.content, ...newContent };
+        // Preserve position when updating content
+        const currentPosition = block.content?.position;
+        const mergedContent = {
+            ...block.content,
+            ...newContent,
+            position: currentPosition // Always keep the current position
+        };
 
-        setPage({
-            ...page,
-            blocks: page.blocks.map(b =>
+        setPage(prev => prev ? {
+            ...prev,
+            blocks: prev.blocks.map(b =>
                 b.id === blockId ? { ...b, content: mergedContent } : b
             )
-        });
+        } : null);
 
         try {
             await blocksApi.update(blockId, { content: mergedContent });
         } catch (error) {
             console.error('Failed to update block:', error);
         }
-    };
+    }, [page]);
 
-    const deleteBlock = async (blockId: string) => {
+    const deleteBlock = async (blockId: string, e: React.MouseEvent) => {
+        // Prevent all parent handlers
+        e.preventDefault();
+        e.stopPropagation();
+
         if (!page) return;
+
+        // Optimistically remove from UI first
+        setPage(prev => prev ? {
+            ...prev,
+            blocks: prev.blocks.filter(b => b.id !== blockId)
+        } : null);
+
+        if (selectedBlock === blockId) {
+            setSelectedBlock(null);
+        }
 
         try {
             await blocksApi.delete(blockId);
-            setPage({
-                ...page,
-                blocks: page.blocks.filter(b => b.id !== blockId)
-            });
-            if (selectedBlock === blockId) {
-                setSelectedBlock(null);
-            }
         } catch (error) {
             console.error('Failed to delete block:', error);
+            // Reload page on error to restore state
+            loadPage();
         }
     };
 
@@ -221,7 +238,8 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
 
     // Canvas pan handlers
     const handleCanvasMouseDown = (e: React.MouseEvent) => {
-        if (e.target === canvasRef.current || (e.target as HTMLElement).classList.contains('canvas-background')) {
+        const target = e.target as HTMLElement;
+        if (target === canvasRef.current || target.classList.contains('canvas-background')) {
             setIsPanning(true);
             setPanStart({ x: e.clientX - offset.x, y: e.clientY - offset.y });
             setSelectedBlock(null);
@@ -234,41 +252,51 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
                 x: e.clientX - panStart.x,
                 y: e.clientY - panStart.y
             });
+            return;
         }
 
-        if (draggingBlock && page) {
-            const block = page.blocks.find(b => b.id === draggingBlock);
-            if (block) {
-                const pos = getBlockPosition(block);
-                const dx = (e.clientX - dragStart.x) / scale;
-                const dy = (e.clientY - dragStart.y) / scale;
-                updateBlockPosition(draggingBlock, {
-                    x: Math.round((pos.x + dx) / GRID_SIZE) * GRID_SIZE,
-                    y: Math.round((pos.y + dy) / GRID_SIZE) * GRID_SIZE
-                });
-                setDragStart({ x: e.clientX, y: e.clientY });
-            }
-        }
+        if (dragState && page) {
+            const block = page.blocks.find(b => b.id === dragState.blockId);
+            if (!block) return;
 
-        if (resizingBlock && page) {
-            const block = page.blocks.find(b => b.id === resizingBlock);
-            if (block) {
-                const pos = getBlockPosition(block);
-                const dx = (e.clientX - dragStart.x) / scale;
-                const dy = (e.clientY - dragStart.y) / scale;
-                updateBlockPosition(resizingBlock, {
-                    width: Math.max(200, pos.width + dx),
-                    height: Math.max(100, pos.height + dy)
-                });
-                setDragStart({ x: e.clientX, y: e.clientY });
+            const dx = (e.clientX - dragState.startX) / scale;
+            const dy = (e.clientY - dragState.startY) / scale;
+
+            let newPosition: BlockPosition;
+
+            if (dragState.mode === 'drag') {
+                newPosition = {
+                    ...dragState.startPos,
+                    x: Math.round((dragState.startPos.x + dx) / GRID_SIZE) * GRID_SIZE,
+                    y: Math.round((dragState.startPos.y + dy) / GRID_SIZE) * GRID_SIZE
+                };
+            } else {
+                newPosition = {
+                    ...dragState.startPos,
+                    width: Math.max(200, Math.round((dragState.startPos.width + dx) / GRID_SIZE) * GRID_SIZE),
+                    height: Math.max(100, Math.round((dragState.startPos.height + dy) / GRID_SIZE) * GRID_SIZE)
+                };
             }
+
+            // Update local state immediately
+            setPage(prev => prev ? {
+                ...prev,
+                blocks: prev.blocks.map(b =>
+                    b.id === dragState.blockId ? { ...b, content: { ...b.content, position: newPosition } } : b
+                )
+            } : null);
         }
     };
 
     const handleCanvasMouseUp = () => {
+        if (dragState && page) {
+            const block = page.blocks.find(b => b.id === dragState.blockId);
+            if (block) {
+                saveBlockPosition(dragState.blockId, getBlockPosition(block));
+            }
+        }
         setIsPanning(false);
-        setDraggingBlock(null);
-        setResizingBlock(null);
+        setDragState(null);
     };
 
     const handleWheel = (e: React.WheelEvent) => {
@@ -279,17 +307,37 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
         }
     };
 
-    const handleBlockMouseDown = (e: React.MouseEvent, blockId: string) => {
+    const handleBlockDragStart = (e: React.MouseEvent, blockId: string) => {
+        e.preventDefault();
         e.stopPropagation();
+
+        const block = page?.blocks.find(b => b.id === blockId);
+        if (!block) return;
+
         setSelectedBlock(blockId);
-        setDraggingBlock(blockId);
-        setDragStart({ x: e.clientX, y: e.clientY });
+        setDragState({
+            blockId,
+            startX: e.clientX,
+            startY: e.clientY,
+            startPos: getBlockPosition(block),
+            mode: 'drag'
+        });
     };
 
-    const handleResizeMouseDown = (e: React.MouseEvent, blockId: string) => {
+    const handleBlockResizeStart = (e: React.MouseEvent, blockId: string) => {
+        e.preventDefault();
         e.stopPropagation();
-        setResizingBlock(blockId);
-        setDragStart({ x: e.clientX, y: e.clientY });
+
+        const block = page?.blocks.find(b => b.id === blockId);
+        if (!block) return;
+
+        setDragState({
+            blockId,
+            startX: e.clientX,
+            startY: e.clientY,
+            startPos: getBlockPosition(block),
+            mode: 'resize'
+        });
     };
 
     if (!pageId) {
@@ -337,41 +385,41 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
                 </div>
 
                 <div className="toolbar">
-                    <button onClick={() => addBlock('text')} className="tool-btn" title="Add Text">
-                        📝
+                    <button onClick={() => addBlock('text')} className="tool-btn" title="Add Text Block">
+                        📝 Text
                     </button>
-                    <button onClick={() => addBlock('code')} className="tool-btn" title="Add Code">
-                        💻
+                    <button onClick={() => addBlock('code')} className="tool-btn" title="Add Code Block">
+                        💻 Code
                     </button>
                     <button onClick={() => addBlock('drawing')} className="tool-btn" title="Add Drawing">
-                        🎨
+                        🎨 Draw
                     </button>
                     <button onClick={() => addBlock('image')} className="tool-btn" title="Add Image">
-                        🖼️
+                        🖼️ Image
                     </button>
                     <div className="divider"></div>
-                    <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="tool-btn" title="Zoom In">
-                        🔍+
+                    <button onClick={() => setScale(s => Math.min(2, s + 0.1))} className="tool-btn zoom-btn">
+                        +
                     </button>
                     <span className="zoom-level">{Math.round(scale * 100)}%</span>
-                    <button onClick={() => setScale(s => Math.max(0.25, s - 0.1))} className="tool-btn" title="Zoom Out">
-                        🔍-
+                    <button onClick={() => setScale(s => Math.max(0.25, s - 0.1))} className="tool-btn zoom-btn">
+                        −
                     </button>
                     <button onClick={() => { setScale(1); setOffset({ x: 0, y: 0 }); }} className="tool-btn" title="Reset View">
-                        ⌂
+                        ⟲
                     </button>
                     <div className="divider"></div>
                     <button onClick={exportToPdf} disabled={isExporting} className="export-btn">
-                        {isExporting ? '...' : '📄 PDF'}
+                        {isExporting ? 'Exporting...' : '📄 Export PDF'}
                     </button>
                 </div>
 
-                {isSaving && <span className="saving-indicator">Saving...</span>}
+                {isSaving && <span className="saving-indicator">💾 Saving...</span>}
             </header>
 
             <div
                 ref={canvasRef}
-                className="infinite-canvas"
+                className={`infinite-canvas ${isPanning ? 'panning' : ''} ${dragState ? 'dragging' : ''}`}
                 onMouseDown={handleCanvasMouseDown}
                 onMouseMove={handleCanvasMouseMove}
                 onMouseUp={handleCanvasMouseUp}
@@ -394,7 +442,7 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
                         return (
                             <div
                                 key={block.id}
-                                className={`canvas-block ${isSelected ? 'selected' : ''}`}
+                                className={`canvas-block ${isSelected ? 'selected' : ''} block-type-${block.type}`}
                                 style={{
                                     left: pos.x,
                                     top: pos.y,
@@ -405,15 +453,19 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
                             >
                                 <div
                                     className="block-drag-handle"
-                                    onMouseDown={(e) => handleBlockMouseDown(e, block.id)}
+                                    onMouseDown={(e) => handleBlockDragStart(e, block.id)}
                                 >
-                                    <span className="block-type-badge">{block.type}</span>
-                                    <button
-                                        className="block-delete-btn"
-                                        onClick={(e) => { e.stopPropagation(); deleteBlock(block.id); }}
-                                    >
-                                        ✕
-                                    </button>
+                                    <span className="block-type-badge">{block.type.toUpperCase()}</span>
+                                    <div className="block-actions">
+                                        <button
+                                            className="block-delete-btn"
+                                            onMouseDown={(e) => e.stopPropagation()}
+                                            onClick={(e) => deleteBlock(block.id, e)}
+                                            title="Delete block"
+                                        >
+                                            🗑️
+                                        </button>
+                                    </div>
                                 </div>
 
                                 <div className="block-content">
@@ -445,7 +497,8 @@ export default function InfiniteCanvas({ pageId }: InfiniteCanvasProps) {
 
                                 <div
                                     className="resize-handle"
-                                    onMouseDown={(e) => handleResizeMouseDown(e, block.id)}
+                                    onMouseDown={(e) => handleBlockResizeStart(e, block.id)}
+                                    title="Resize"
                                 />
                             </div>
                         );
