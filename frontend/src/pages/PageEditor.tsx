@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { pagesApi, blocksApi } from '../services/api';
 import TextBlock from '../components/blocks/TextBlock';
 import CodeBlock from '../components/blocks/CodeBlock';
 import DrawingBlock from '../components/blocks/DrawingBlock';
 import ImageBlock from '../components/blocks/ImageBlock';
+import html2pdf from 'html2pdf.js';
 import './PageEditor.css';
 
 interface Block {
@@ -27,8 +28,31 @@ export default function PageEditor() {
     const [page, setPage] = useState<Page | null>(null);
     const [isLoading, setIsLoading] = useState(true);
     const [isSaving, setIsSaving] = useState(false);
+    const [isExporting, setIsExporting] = useState(false);
     const [editingTitle, setEditingTitle] = useState(false);
     const [title, setTitle] = useState('');
+    const contentRef = useRef<HTMLDivElement>(null);
+
+    const exportToPdf = async () => {
+        if (!contentRef.current || !page) return;
+
+        setIsExporting(true);
+        try {
+            const opt = {
+                margin: 10,
+                filename: `${page.title}.pdf`,
+                image: { type: 'jpeg' as const, quality: 0.98 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm' as const, format: 'a4' as const, orientation: 'portrait' as const }
+            };
+
+            await html2pdf().set(opt).from(contentRef.current).save();
+        } catch (error) {
+            console.error('PDF export failed:', error);
+        } finally {
+            setIsExporting(false);
+        }
+    };
 
     useEffect(() => {
         if (id) {
@@ -164,10 +188,17 @@ export default function PageEditor() {
                     )}
                 </div>
                 {isSaving && <span className="saving-indicator">Saving...</span>}
+                <button
+                    onClick={exportToPdf}
+                    disabled={isExporting}
+                    className="export-btn"
+                >
+                    {isExporting ? '📄 Exporting...' : '📄 Export PDF'}
+                </button>
             </header>
 
             <main className="editor-main">
-                <div className="blocks-container">
+                <div className="blocks-container" ref={contentRef}>
                     {page.blocks.map((block) => (
                         <div key={block.id} className="block-wrapper">
                             <div className="block-controls">
