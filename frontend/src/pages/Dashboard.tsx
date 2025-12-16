@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import Sidebar from '../components/Sidebar';
-import CanvasEditor from '../components/CanvasEditor';
+import InfiniteCanvas from '../components/InfiniteCanvas';
 import './Dashboard.css';
 
 export default function Dashboard() {
@@ -25,7 +25,7 @@ export default function Dashboard() {
                     {sidebarCollapsed ? '☰' : '✕'}
                 </button>
 
-                <CanvasEditor pageId={selectedPageId} />
+                <InfiniteCanvas pageId={selectedPageId} />
             </div>
         </div>
     );
