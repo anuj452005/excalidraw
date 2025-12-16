@@ -1,0 +1,69 @@
+.dashboard {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+    background: #0f0f1a;
+}
+
+.main-area {
+    flex: 1;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.toggle-sidebar-btn {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    z-index: 100;
+    width: 40px;
+    height: 40px;
+    border: none;
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 18px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.toggle-sidebar-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+    transform: scale(1.05);
+}
+
+/* When sidebar is visible, hide toggle button on larger screens */
+.dashboard .sidebar~.main-area .toggle-sidebar-btn {
+    opacity: 0.6;
+}
+
+.dashboard .sidebar~.main-area .toggle-sidebar-btn:hover {
+    opacity: 1;
+}
+
+/* Mobile */
+@media (max-width: 768px) {
+    .dashboard {
+        flex-direction: column;
+    }
+
+    .dashboard .sidebar {
+        width: 100%;
+        height: auto;
+        max-height: 50vh;
+        border-right: none;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .toggle-sidebar-btn {
+        top: 8px;
+        left: 8px;
+        width: 36px;
+        height: 36px;
+    }
+}

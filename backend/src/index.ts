@@ -4,6 +4,7 @@ import dotenv from 'dotenv';
 import authRoutes from './routes/auth';
 import pagesRoutes from './routes/pages';
 import blocksRoutes from './routes/blocks';
+import foldersRoutes from './routes/folders';
 
 dotenv.config();
 
@@ -21,6 +22,7 @@ app.use(express.json({ limit: '10mb' }));
 app.use('/api/auth', authRoutes);
 app.use('/api/pages', pagesRoutes);
 app.use('/api/blocks', blocksRoutes);
+app.use('/api/folders', foldersRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
