@@ -1,6 +1,10 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { pagesApi, blocksApi } from '../services/api';
+import TextBlock from '../components/blocks/TextBlock';
+import CodeBlock from '../components/blocks/CodeBlock';
+import DrawingBlock from '../components/blocks/DrawingBlock';
+import ImageBlock from '../components/blocks/ImageBlock';
 import './PageEditor.css';
 
 interface Block {
@@ -66,9 +70,9 @@ export default function PageEditor() {
         try {
             const orderIndex = page.blocks.length;
             const content = type === 'text' ? { text: '' } :
-                type === 'code' ? { code: '', language: 'javascript' } :
+                type === 'code' ? { code: '', language: 'javascript', output: '' } :
                     type === 'drawing' ? { data: null } :
-                        { url: '' };
+                        { url: '', localData: undefined };
 
             const response = await blocksApi.create({
                 pageId: page.id,
@@ -89,14 +93,17 @@ export default function PageEditor() {
     const updateBlock = async (blockId: string, content: any) => {
         if (!page) return;
 
+        // Update local state immediately
+        setPage({
+            ...page,
+            blocks: page.blocks.map(b =>
+                b.id === blockId ? { ...b, content } : b
+            )
+        });
+
+        // Save to backend
         try {
             await blocksApi.update(blockId, { content });
-            setPage({
-                ...page,
-                blocks: page.blocks.map(b =>
-                    b.id === blockId ? { ...b, content } : b
-                )
-            });
         } catch (error) {
             console.error('Failed to update block:', error);
         }
@@ -164,6 +171,7 @@ export default function PageEditor() {
                     {page.blocks.map((block) => (
                         <div key={block.id} className="block-wrapper">
                             <div className="block-controls">
+                                <span className="block-type-label">{block.type}</span>
                                 <button
                                     onClick={() => deleteBlock(block.id)}
                                     className="block-delete-btn"
@@ -173,54 +181,31 @@ export default function PageEditor() {
                             </div>
 
                             {block.type === 'text' && (
-                                <textarea
-                                    className="text-block"
-                                    value={block.content.text || ''}
-                                    onChange={(e) => updateBlock(block.id, { text: e.target.value })}
-                                    placeholder="Start writing..."
-                                    rows={3}
+                                <TextBlock
+                                    content={block.content}
+                                    onChange={(content) => updateBlock(block.id, content)}
                                 />
                             )}
 
                             {block.type === 'code' && (
-                                <div className="code-block">
-                                    <select
-                                        value={block.content.language || 'javascript'}
-                                        onChange={(e) => updateBlock(block.id, {
-                                            ...block.content,
-                                            language: e.target.value
-                                        })}
-                                        className="language-select"
-                                    >
-                                        <option value="javascript">JavaScript</option>
-                                        <option value="python">Python</option>
-                                        <option value="typescript">TypeScript</option>
-                                        <option value="cpp">C++</option>
-                                        <option value="java">Java</option>
-                                    </select>
-                                    <textarea
-                                        className="code-textarea"
-                                        value={block.content.code || ''}
-                                        onChange={(e) => updateBlock(block.id, {
-                                            ...block.content,
-                                            code: e.target.value
-                                        })}
-                                        placeholder="// Write your code here..."
-                                        rows={8}
-                                    />
-                                </div>
+                                <CodeBlock
+                                    content={block.content}
+                                    onChange={(content) => updateBlock(block.id, content)}
+                                />
                             )}
 
                             {block.type === 'drawing' && (
-                                <div className="drawing-block">
-                                    <p>🎨 Drawing block (Coming in Phase 7)</p>
-                                </div>
+                                <DrawingBlock
+                                    content={block.content}
+                                    onChange={(content) => updateBlock(block.id, content)}
+                                />
                             )}
 
                             {block.type === 'image' && (
-                                <div className="image-block">
-                                    <p>🖼️ Image block (Coming in Phase 9)</p>
-                                </div>
+                                <ImageBlock
+                                    content={block.content}
+                                    onChange={(content) => updateBlock(block.id, content)}
+                                />
                             )}
                         </div>
                     ))}

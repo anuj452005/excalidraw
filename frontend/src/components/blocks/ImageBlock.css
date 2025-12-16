@@ -1,0 +1,107 @@
+.image-block-upload {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    border: 2px dashed rgba(255, 255, 255, 0.2);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    min-height: 150px;
+}
+
+.image-block-upload:hover,
+.image-block-upload:focus {
+    border-color: rgba(99, 102, 241, 0.5);
+    background: rgba(99, 102, 241, 0.05);
+    outline: none;
+}
+
+.image-block-upload.drag-active {
+    border-color: #6366f1;
+    background: rgba(99, 102, 241, 0.1);
+}
+
+.upload-icon {
+    font-size: 48px;
+    margin-bottom: 12px;
+}
+
+.upload-text {
+    color: rgba(255, 255, 255, 0.5);
+    text-align: center;
+    font-size: 14px;
+    margin: 0;
+}
+
+.upload-status {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+}
+
+.upload-status .spinner {
+    width: 32px;
+    height: 32px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #6366f1;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+.upload-status p {
+    color: rgba(255, 255, 255, 0.6);
+    margin: 0;
+}
+
+.image-block-preview {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+.image-block-preview img {
+    display: block;
+    width: 100%;
+    max-height: 400px;
+    object-fit: contain;
+    background: rgba(0, 0, 0, 0.2);
+}
+
+.remove-image-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(239, 68, 68, 0.9);
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: #fff;
+    font-size: 13px;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+}
+
+.image-block-preview:hover .remove-image-btn {
+    opacity: 1;
+}
+
+.local-badge {
+    position: absolute;
+    bottom: 12px;
+    left: 12px;
+    background: rgba(0, 0, 0, 0.7);
+    padding: 4px 10px;
+    border-radius: 6px;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.7);
+}

@@ -1,0 +1,113 @@
+.drawing-block-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.drawing-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 16px;
+    padding: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 12px;
+}
+
+.color-picker {
+    display: flex;
+    gap: 6px;
+}
+
+.color-btn {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    border: 2px solid transparent;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.color-btn:hover {
+    transform: scale(1.15);
+}
+
+.color-btn.active {
+    border-color: #6366f1;
+    box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5);
+}
+
+.brush-size {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 13px;
+}
+
+.brush-size input[type="range"] {
+    width: 80px;
+    accent-color: #6366f1;
+}
+
+.brush-size span {
+    min-width: 36px;
+    text-align: right;
+}
+
+.drawing-actions {
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.tool-btn {
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 8px;
+    padding: 6px 12px;
+    color: rgba(255, 255, 255, 0.8);
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.tool-btn:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+.tool-btn.active {
+    background: rgba(99, 102, 241, 0.3);
+    border-color: #6366f1;
+    color: #a5b4fc;
+}
+
+.tool-btn.danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: rgba(239, 68, 68, 0.3);
+}
+
+.canvas-wrapper {
+    border: 2px dashed rgba(255, 255, 255, 0.15);
+    border-radius: 12px;
+    overflow: hidden;
+    background: rgba(0, 0, 0, 0.2);
+    min-height: 300px;
+}
+
+.canvas-wrapper canvas {
+    display: block;
+}
+
+@media (max-width: 640px) {
+    .drawing-toolbar {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .drawing-actions {
+        margin-left: 0;
+        width: 100%;
+        justify-content: flex-start;
+    }
+}
